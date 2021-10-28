@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sentinel-2 Enhancer</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+  integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+  crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+  integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+  crossorigin=""></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.2/leaflet.draw.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.2/leaflet.draw.js"></script>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+
+</head>
+<body>
+  <div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <div id="digisat" style="width: 50%; height: 100%; position: absolute;"></div>
+    </div>
+    <div class="col">
+       <div class="p-3 bg-light text-center">
+          <p class="display-5">digisat.space</p>
+          <h5>Sentinel-2 Pan Sharpening | Approx. TAT: 25 Min</h5>
+
+          <table class="table table-bordered">
+            <tr>
+              <th colspan="4">Rendered Examples</th>
+            </tr>
+            <tr>
+              <th>Place</th>
+              <th>Raster Type</th>
+              <th>Bands</th>
+              <th>Resolution</th>  
+            </tr>
+            <tr>
+              <td rowspan="2" style="vertical-align : middle;">Lisbon, Portugal</td>
+              <td>Original</td>
+              <td>B1, B5, B12</td>
+              <td>~ 33.33m</td>
+            </tr>
+            <tr>
+              <td>Enhanced</td>
+              <td>B1, B5, B12</td>
+              <td>10m</td>
+            </tr>
+            <tr>
+              <td rowspan="2" style="vertical-align : middle;">Bangalore, India</td>
+              <td>Original</td>
+              <td>B1, B5, B12</td>
+              <td>~ 33.33m</td>
+            </tr>
+            <tr>
+              <td>Enhanced</td>
+              <td>B1, B5, B12</td>
+              <td>10m</td>
+            </tr>
+            <tr>
+              <td rowspan="2" style="vertical-align : middle;">Sacramento, USA</td>
+              <td>Original</td>
+              <td>B1, B5, B12</td>
+              <td>~ 33.33m</td>
+            </tr>
+            <tr>
+              <td>Enhanced</td>
+              <td>B1, B5, B12</td>
+              <td>10m</td>
+            </tr>
+          </table>
+          
+          <div class="progress" id="pbar">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%">
+              Downloading From Copernicus | Approx. Wait Time: 15 Minutes...
+            </div>
+          </div>
+
+          <div id="tile-error" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+              <div class="toast-body">
+                An error occurred for this tile. Please choose a different location
+              </div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+          </div>
+          
+          <div id="tile-success" class="alert alert-success d-flex align-items-center" role="alert">
+            <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Success:"><use xlink:href="#check-circle-fill"/></svg>
+            <div id="tile-success-text">
+            </div>
+          </div>
+
+       </div>
+    </div>
+  </div>
+</div>
+<script>
+    var progress = document.getElementById("pbar");
+    progress.style.visibility="hidden";
+    
+    var error_message = document.getElementById("tile-error");
+    error_message.style.visibility="hidden";
+
+    var success_message = document.getElementById("tile-success");
+    success_message.style.visibility="hidden";
+    
+    // center of the map
+    var center = [0, 0];
+
+    // Set up the OSM layer
+    var osm = L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Data © <a href="http://osm.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18
+      });
+
+    var gmap = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+      maxZoom: 20,
+      subdomains:['mt0','mt1','mt2','mt3']
+    });
+
+    // Create the map
+    var map = L.map('digisat', {
+      center: [0, 0],
+      zoom: 5,
+      layers: [osm, gmap]
+    });
+
+    var baseMaps = {
+        "Google": gmap,
+        "OSM": osm
+    };
+
+    L.control.layers(baseMaps).addTo(map);
+    
+    // Initialise the FeatureGroup to store editable layers
+    var editableLayers = new L.FeatureGroup();
+    map.addLayer(editableLayers);
+
+    var drawPluginOptions = {
+      position: 'topright',
+      draw: {
+        polygon: false,
+        polyline: false,
+        circle: false, // Turns off this drawing tool
+        rectangle: true,
+        marker: false,
+        },
+      edit: {
+        featureGroup: editableLayers, //REQUIRED!!
+        remove: false
+      }
+    };
+
+    // Initialise the draw control and pass it the FeatureGroup of editable layers
+    var drawControl = new L.Control.Draw(drawPluginOptions);
+    map.addControl(drawControl);
+
+    var editableLayers = new L.FeatureGroup();
+    map.addLayer(editableLayers);
+
+    map.on('draw:drawstart', function(e) {
+      progress.style.visibility="hidden";
+      success_message.style.visibility="hidden";
+      error_message.style.visibility="hidden";
+      editableLayers.clearLayers(e.layer);
+    });
+
+    map.on('draw:created', function(e) {
+      var type = e.layerType,
+        layer = e.layer;
+
+      editableLayers.addLayer(layer);
+      error_message.style.visibility="hidden";
+      success_message.style.visibility="hidden";
+      progress.style.visibility="visible";
+
+      var json = editableLayers.toGeoJSON();
+      var coords = {value: json}
+
+      $.ajax({
+            url: '/download',
+            type: 'POST',
+            data: JSON.stringify({coords}),
+            contentType: 'application/json;charset=UTF-8'
+        })
+        .done(function(result){     
+            progress.style.visibility="hidden";
+
+            if (result == "0") {
+              error_message.style.visibility="visible";
+            } else {
+              error_message.style.visibility="hidden";
+              progress.style.visibility="hidden";
+              success_message.style.visibility="visible";
+
+              var div = document.getElementById('tile-success-text');
+              div.innerHTML += 'Downloaded Tile <b>'+result+"</b> <p>Enhancing Tile From 20m/60m To 10m</p>";
+              
+              var path = {value: result}
+              $.ajax({
+                    url: '/resolve',
+                    type: 'POST',
+                    data: JSON.stringify({path}),
+                    contentType: 'application/json;charset=UTF-8'
+                })
+                .done(function(result){
+
+                  if (result == "True") {
+                    var div = document.getElementById('tile-success-text');
+                    div.innerHTML = '<table class="table table-bordered"> <tr> <th colspan="4">Download Samples</th> </tr> <tr> <th>Raster Type</th> <th>Band Order</th> <th>Resolution</th> <th>Visualize</th> </tr> <tr> <td>Original</td> <td>B1, B5, B12</td> <td>~ 33.33m</td> <td><a href="http://tiles.rdnt.io/preview?url=https://crossregionreplpuri.s3.ap-south-1.amazonaws.com/digisat/stacked_original_cog.tif&rgb=3%2C2%2C1&nodata=0&resample=bilinear" target="_blank">Original</a></td> </tr> <tr> <td>Enhanced</td> <td>B1, B5, B12</td> <td>10m</td> <td><a href="http://tiles.rdnt.io/preview?url=https://crossregionreplpuri.s3.ap-south-1.amazonaws.com/digisat/stacked_enhanced_cog.tif&rgb=3%2C2%2C1&nodata=0&resample=bilinear" target="_blank">Enhanced</a></td> </tr> </table>';
+                  } else {
+                    success_message.style.visibility="hidden";
+                    error_message.style.visibility="visible";
+                  }
+
+                });
+            }
+        })
+
+    });
+
+</script>
+</body>
+</html>
