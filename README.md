@@ -11,12 +11,13 @@ The code is adapted from https://github.com/lanha/DSen2 and is an extension for 
 
 **Output**: Sentinel-2 Bands at 10m
 
-![alt text]()
+![Final Step Output](https://github.com/purijs/Sentinel-2-Superresolution/blob/main/git_view.PNG)
 
 ## Requirements
 
 This example requires the **Ubuntu 16**.
-All dependencies can be installed from `requirements.txt`
+ - Tensorflow 2 GPU
+ - Python 3.7
 
 Ideal EC2 Instances
  - g4dn.4xlarge
